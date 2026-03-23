@@ -1,1 +1,463 @@
-<html> <head> <title>Hello World</title> </head> <body> <h1>Hello World</h1> <p>This is a paragraph.</p> </body> </html>
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+
+        <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+        <!-- Desc -->
+        <meta name="description" content="利息計算機繪製一個 Table 顯示每個月要還的本金跟利息，並且使用圖表顯示還錢的示意圖。透過 Table 跟圖表可以清楚暸解利息的算法跟每個月利息償還的多寡。">
+
+        <!-- Meta -->
+        <!--    <meta property="og:image" content="qwe.png"/>-->
+        <meta property="og:title" content="利息計算機"/>
+        <meta property="og:type" content="website" />
+        <meta name="keywords" content="利息計算機"/>
+        <meta name="description" content="分期利息計算機"/>
+
+        <!-- Bootstrap CSS -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+        <!-- d3.js -->
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+        <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+
+        <!-- Excel-->
+        <script src="./excel_js/FileSaver.min.js"></script>
+        <script src="./excel_js/xlsx.core.min.js"></script>
+        <script src="./excel_js/tableexport.min.js"></script>
+
+
+        <title>利息計算機</title>
+        <script>
+            dd = function(msg){
+                console.log(msg)
+            }
+
+            findGetParameter = function(parameterName) {
+                var result = null,
+                    tmp = [];
+                location.search
+                    .substr(1)
+                    .split("&")
+                    .forEach(function (item) {
+                      tmp = item.split("=");
+                      if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
+                    });
+                return result;
+            }
+
+        </script>
+        <style>
+            #main_container{
+                padding-top:20px;
+                padding-bottom:20px;
+                background-color:#F5F5DC;
+            }
+
+            tr:nth-child(odd) {
+                background: white;
+            }
+
+            .table-hover tbody tr:hover td, .table-hover tbody tr:hover th {
+                background-color: orange;
+            }
+
+            @media screen and (max-width: 600px) {
+                body {
+                    background-color:#F5F5DC;
+                }
+            }
+
+            .input_form{
+                width:200px;
+            }
+
+            .red_word{
+                color:red;
+            }
+        </style>
+
+        <script src="https://d.line-scdn.net/r/web/social-plugin/js/thirdparty/loader.min.js" async="async" defer="defer"></script>
+    </head>
+    <body>
+        <div id="main_container" class="container">
+            <div id="line_btn" style="float:right">
+                <div id="line_btn_real" class="line-it-button" data-lang="zh_Hant" data-type="share-a" data-ver="3" data-url="http://interest.howardchung.info" data-color="default" data-size="large" data-count="false""></div>
+            </div>
+            <h1 class="display-5">利息計算機</h1>
+            <div class="row">
+                <div class="col-md-9 col-sm-9 col-8">
+                    <div class="form-group">
+                        <lable for="total">總金額</lable>
+                        <input type="text" id="total" class="form-control input_form" value="12000" placeholder="請輸入總金額">
+                    </div>
+
+                    <div class="form-group">
+                        <lable for="times">分期數</lable>
+                        <input type="text" id="times" class="form-control input_form" value="12" placeholder="請輸入分期數">
+                    </div>
+
+                    <div class="form-group">
+                        <lable for="interest">年利率(%)</lable>
+                        <input type="text" id="interest" class="form-control input_form" value="18" placeholder="請輸入年利率">
+                    </div>
+
+                    <button type="button" id="count" class="btn btn-info btn-lg">計算利息</button>
+                </div>
+
+                <div class="col-md-3 col-sm-3 col-4" style="text-align:right">
+                    <lable style="float:right">貸款項目</lable>
+                    <br />
+                    <div class="btn-group-vertical" role="group" aria-label="Vertical button group">
+                        <button type="button" id="credit" class="btn btn-info">信貸</button>
+                        <button type="button" id="car" class="btn btn-info">車貸</button>
+                        <button type="button" id="learn" class="btn btn-info">學貸</button>
+                        <button type="button" id="card" class="btn btn-info">信用卡</button>
+                        <button type="button" id="house" class="btn btn-info">房貸</button>
+                    </div>
+                </div>
+            </div>
+            <br />
+            <br />
+            <div id="count_result" style="display:none">
+                <h4>總計利息</h4>
+                <input type="text" id="total_interest" class="form-control input_form red_word" disabled="disabled">
+                <br />
+                <h4>繳款方式<button id="excel_btn" style="float:right;margin-left:5px;" class="btn btn-secondary btn-sm">EXCEL</button><button id="csv_btn" style="float:right" class="btn btn-secondary btn-sm">CSV</button></h4>
+                <div id="pay_count">
+                </div>
+                <div id="pay_graph">
+                </div>
+                <p class="red_word">本計算僅供參考之用，分期除不盡的併入第一期。</p>
+            </div>
+            <div id="draw_svg" style="overflow:auto"></div>
+        </div>
+
+        <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
+        <script>
+            window.csv_data = [];
+            function download_csv() {
+                var csv = '期數,繳款金額,繳款利息\n';
+                csv_data.forEach(function(row) {
+                        csv += row.join(',');
+                        csv += "\n";
+                });
+
+                var hiddenElement = document.createElement('a');
+                hiddenElement.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
+                hiddenElement.target = '_blank';
+                var total = $('#total').val()
+                var times = $('#times').val()
+                var interest = $('#interest').val()
+                hiddenElement.download = 'interest_'+total+'_'+ times +'_'+ interest+'.csv';
+                // hiddenElement.download = 'interest.csv';
+                hiddenElement.click();
+            }
+        </script>
+
+        <script>
+            var count_total = function(total,times,interest){
+                total = parseInt(total)
+                times = parseInt(times)
+                interest = parseFloat(interest)
+
+                //Modify URL
+                window.history.pushState('page', 'Title', '/?total='+total+'&month='+times+'&interest='+interest);
+
+                //Modify csv
+                window.csv_data = []
+
+                var price_block = Math.round(total/times)
+                var month_interest = interest/12
+                var total_block = (times + 1) * times /2
+                var block_interest = price_block * month_interest / 100
+                var total_interest = Math.round(total_block * block_interest)
+                var mod = total % times
+                $('#total_interest').val(total_interest)
+                $('#pay_count').empty()
+                var pay_total = 0
+
+                $('#pay_count').append(
+                    '<table id="interest_table" class="table table-bordered table-hover table-sm"><thead style="text-align:center"><tr class="table-primary"><th style="width:15%">期數</th><th>繳款金額</th><th>繳款利息</th></tr></thead><tbody></tbody></table>'
+                )
+
+                $('#count_result').show()
+
+                var pay_times = 1
+                for(var i = times; i > 0 ; i--){
+                    var pay = Math.round(price_block + block_interest * i)
+                    if( i == times){
+                        pay += mod
+                    }
+                    var pay_interest = Math.round(block_interest * i)
+                    $('#pay_count tbody').append('<tr><td style="text-align:center">' + pay_times + '</td><td>' + pay + '</td><td>' + pay_interest + '</td></tr>')
+
+                    window.csv_data.push([pay_times,pay,pay_interest])
+                    pay_total += pay
+                    pay_times ++
+                }
+
+                var scale = 2
+                var price_block_beautify_scale = 4;
+                var interest_block_beautify_scale = 1.5;
+                var price_block_length = 100 * scale / price_block_beautify_scale;
+                var interest_block_length = month_interest * scale * interest_block_beautify_scale;
+                if (interest_block_length < 1){
+                    interest_block_length = 1
+                }
+                var space = 5 * scale
+
+                var data = []
+                var pay_times = 1
+                for (var i = times; i > 0 ; i--){
+                    data.push({x:pay_times, w:Math.floor(price_block_length), offset_y: 0, color: '#09c'})
+                    for (var j = 1 ; j <= i; j++){
+
+                        // interest columns separate
+                        // data.push({x:pay_times, w:Math.floor(interest_block_length), offset_y: Math.floor(price_block_length) + space *j , color: 'red'})
+                        // interest columns combine together
+                        data.push({x:pay_times, w:Math.floor(interest_block_length), offset_y: Math.floor(price_block_length) + Math.floor(interest_block_length) *(j-1) , color: 'red'})
+                    }
+                    pay_times ++;
+                }
+
+                var price_data = []
+                var pay_times = 1
+                var word_offset = 70
+                for (var i = times; i > 0 ; i--){
+                    // interest columns separate
+                    // price_data.push({x:pay_times, w:Math.floor(price_block_length * i + interest_block_length), offset_y: space * i + word_offset , color: '#09c', price: Math.round(block_interest * i + price_block)})
+                    // interest columns combine together
+                    var price = Math.round(block_interest * i + price_block)
+                    if (i == times){
+                        price += mod
+                    }
+                    price_data.push({x:pay_times, w:Math.floor(price_block_length * i + interest_block_length), offset_y: Math.floor(interest_block_length) * i + word_offset , color: '#09c', price:price})
+                    pay_times ++;
+                }
+
+                var example_data = []
+                var pay_times = 1
+                var word_offset = 70
+                example_data.push({x:1, w:Math.floor(price_block_length), offset_y: 0 , color: '#09c', price: price_block , text: '每月償還本金'})
+                example_data.push({x:2, w:Math.floor(interest_block_length), offset_y: 0 , color: 'red', price: Math.round(block_interest), text: '利息'})
+
+                $('#draw_svg').empty().css('height','500px')
+
+                var e = d3.select('#draw_svg')
+                    .append('svg')
+                    .attr('height',100)
+                    .style("width", "100%")
+                    .style("overflow-x", "scroll")
+                    .style("overflow-y", "scroll")
+                    .attr('id','example')
+
+                e.selectAll('rect')
+                    .data(example_data)
+                    .enter()
+                    .append('rect')
+                    .attrs({
+                      'fill': function(d){
+                        return d.color;
+                      },
+                      'width':function(d){
+                        return d.w;
+                      },
+                      'height':20,
+                      'x':function(d){
+                        return (d.offset_y)
+                      },
+                      'y':function(d){
+                        return (d.x-1) * 35;
+                      }
+                     });
+
+                e.selectAll('text')
+                    .data(example_data)
+                    .enter()
+                    .append('text')
+                    .text(function(d){
+                        return d.text + '(' + d.price + ')';
+                    })
+                    .attrs({
+                      'fill':'#000',
+                      'x':function(d){
+                        return 100
+                      },
+                      'y':function(d){
+                        return d.x * 35 - 18;
+                      }
+                     })
+
+                var s = d3.select('#draw_svg')
+                    .append('svg')
+                    // .attr('width',500)
+                    .attr('height',times * 35)
+                    // .attr('viewBox',"0,0,150,420")
+                    .style("width", "100%")
+                    .style("overflow-x", "scroll")
+                    .style("overflow-y", "scroll")
+                    .attr('id','interest')
+
+                s.selectAll('rect')
+                 .data(data)
+                 .enter()
+                 .append('rect')
+                 .attrs({
+                  'fill': function(d){
+                    return d.color;
+                  },
+                  'width':function(d){
+                    return d.w;
+                  },
+                  'height':20,
+                  'x':function(d){
+                    return (d.offset_y)
+                  },
+                  'y':function(d){
+                    return (d.x-1) * 35;
+                  }
+                 });
+
+                s.selectAll('text')
+                    .data(price_data)
+                    .enter()
+                    .append('text')
+                    .text(function(d){
+                        return d.price;
+                    })
+                    .attrs({
+                      'fill':'#000',
+                      'x':function(d){
+                            return (d.offset_y)
+                        },
+                      'y':function(d){
+                        return d.x * 35 - 18;
+                      }
+                     })
+
+            }
+
+            //read get parameter
+            $(function(){
+                var total = findGetParameter('total')
+                var interest = findGetParameter('interest')
+                var month = findGetParameter('month')
+
+                if (total !== null && interest !== null && month !== null){
+                    $('#total').val(total)
+                    $('#times').val(month)
+                    $('#interest').val(interest)
+                    count_total(total,month,interest)
+                }
+            })
+
+            // count button
+            $(function(){
+                $('#count').on('click',function(){
+                    var total = $('#total').val()
+                    var times = $('#times').val()
+                    var interest = $('#interest').val()
+                    count_total(total,times,interest)
+
+
+                    gtag('event', 'count_interest', {
+                      'event_category': 'interest',
+                      'event_label': 'interest',
+                      'value': $('#total').val() + '|' + $('#times').val() + '|' + $('#interest').val()
+                    });
+                })
+            })
+
+            // line button
+            $(function(){
+                $('#count').on('click',function(){
+                    $('#line_btn').empty().append('<div class="line-it-button" data-lang="zh_Hant" data-type="share-a" data-ver="3" data-url="'+document.URL+'" data-color="default" data-size="large" data-count="false"></div>')
+                    LineIt.loadButton();
+                })
+            })
+
+            // type button
+            $(function(){
+                $('#house').on('click',function(){
+                    var total = 8000000
+                    var times = 240
+                    var interest = 1.5
+                    $('#total').val(total)
+                    $('#times').val(times)
+                    $('#interest').val(interest)
+                    count_total(total,times,interest)
+                })
+
+                $('#credit').on('click',function(){
+                    var total = 100000
+                    var times = 12
+                    var interest = 6
+                    $('#total').val(total)
+                    $('#times').val(times)
+                    $('#interest').val(interest)
+                    count_total(total,times,interest)
+                })
+
+                $('#car').on('click',function(){
+                    var total = 500000
+                    var times = 60
+                    var interest = 3
+                    $('#total').val(total)
+                    $('#times').val(times)
+                    $('#interest').val(interest)
+                    count_total(total,times,interest)
+                })
+
+                $('#learn').on('click',function(){
+                    var total = 1000000
+                    var times = 96
+                    var interest = 1.5
+                    $('#total').val(total)
+                    $('#times').val(times)
+                    $('#interest').val(interest)
+                    count_total(total,times,interest)
+                })
+
+                $('#card').on('click',function(){
+                    var total = 100000
+                    var times = 12
+                    var interest = 18
+                    $('#total').val(total)
+                    $('#times').val(times)
+                    $('#interest').val(interest)
+                    count_total(total,times,interest)
+                })
+            })
+
+            //download button
+            $(function(){
+                $('#csv_btn').on('click',function(){
+                    download_csv()
+                })
+
+                $('#excel_btn').on('click',function(){
+                    var instance = new TableExport($('#interest_table')[0],{
+                        type: "excel",
+                        escape: "false",
+                        fileName: 'interest',
+                        exportButtons: false
+                    })
+                    var exportData = instance.getExportData()['interest_table']['xlsx'];
+                    var total = $('#total').val()
+                    var times = $('#times').val()
+                    var interest = $('#interest').val()
+                    // instance.export2file(exportData.data, exportData.mimeType, exportData.filename, exportData.fileExtension);
+                    instance.export2file(exportData.data, exportData.mimeType, 'interest_'+total+'_'+ times +'_'+ interest, exportData.fileExtension);
+                })
+            })
+
+        </script>
+    </body>
+</html>
